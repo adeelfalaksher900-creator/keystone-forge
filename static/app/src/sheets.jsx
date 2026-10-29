@@ -76,6 +76,7 @@ export function PersonSheet({ person, projectKey, sample, me, onClose, onAvailab
       await call('setAvailability', { accountId: person.accountId, status, ...(status === 'leave' ? { until: date } : status === 'leaving' ? { from: date } : {}) });
       toast(status === 'available' ? `${person.displayName} marked available` : `Availability saved for ${person.displayName}`);
       onAvailability();
+      call('handover', { projectKey, accountId: person.accountId }).then(setPlan, () => {});
     } catch (e) { toast(e.message); } finally { setBusy(false); }
   };
   const createTasks = async () => {
@@ -112,7 +113,7 @@ export function PersonSheet({ person, projectKey, sample, me, onClose, onAvailab
         {plan?.items.map((i) => (
           <div className="card" key={i.areaId} style={{ boxShadow: 'none', background: 'var(--card-2)', border: '1px solid var(--line)', padding: 14 }}>
             <div className="card-head" style={{ marginBottom: 8 }}><h3>{i.area}</h3><span className="controls"><span className="badge">{pct(i.share)} of context</span><Level level={i.riskLevel} /></span></div>
-            <div className="reason"><Icon.users /><span>{i.needsNewOwner ? <b className="lvl lvl-high">No one else has meaningful context — pick a new owner.</b> : <>Hand over to <b>{i.successors.map((s) => `${s.displayName} (${pct(s.share)})`).join(' or ')}</b></>}</span></div>
+            <div className="reason"><Icon.users /><span>{i.needsNewOwner ? <b className="lvl lvl-high">No one else has meaningful context — pick a new owner.</b> : <>Hand over to <b>{i.successors.map((s) => `${s.displayName} (${pct(s.share)})`).join(' or ')}</b>{i.lowContext && <span className="muted"> · little context yet, plan a full walkthrough</span>}</>}</span></div>
             {i.transferIssues.length > 0 && <div className="reason"><Icon.chev /><span>Transfer {i.transferIssues.slice(0, 6).map((t) => t.key).join(', ')}{i.transferIssues.length > 6 ? ` and ${i.transferIssues.length - 6} more` : ''}</span></div>}
             {i.readingList.length > 0 && <div className="reason"><Icon.info /><span className="muted">Read first: {i.readingList.slice(0, 3).map((t) => t.key).join(', ')}</span></div>}
           </div>

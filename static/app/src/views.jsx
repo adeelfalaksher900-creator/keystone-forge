@@ -46,6 +46,22 @@ export function Overview({ data, openArea, openPerson }) {
           <p className="faint" style={{ marginTop: 10 }}>Keystone index = how much area risk rests on one person (0–100). It measures fragility, not performance.</p>
         </section>
       </div>
+      {data.recommendations?.length > 0 && (
+        <section className="card" aria-labelledby="next-h" style={{ marginTop: 16 }}>
+          <div className="card-head"><h2 id="next-h">Next best actions</h2><span className="faint">Spread context before it's needed</span></div>
+          <ol className="list actions">
+            {data.recommendations.map((r, i) => (
+              <li key={r.areaId}>
+                <button className="row-btn" onClick={() => openArea(data.areas.find((a) => a.id === r.areaId))}>
+                  <span className={`num lvl-${r.level}`}>{i + 1}</span>
+                  <span className="grow"><b>{r.area}</b><span className="muted" style={{ display: 'block' }}>{r.text}</span></span>
+                  <span className="chev"><Icon.chev /></span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </div>
   );
 }
