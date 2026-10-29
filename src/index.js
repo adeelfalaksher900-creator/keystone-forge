@@ -51,6 +51,7 @@ export const riskReport = safe(async (payload) => {
     project: projectKey,
     summary: r.summary,
     riskiestAreas: r.areas.slice(0, 5).map((a) => ({ area: a.name, risk: `${a.risk.level} (${a.risk.score}/100)`, busFactor: a.busFactor, openWork: a.openCount, mainHolders: a.holders.slice(0, 2).map((h) => `${h.displayName} ${pct(h.share)}${h.away ? ' (away)' : ''}`), why: a.risk.reasons })),
+    nextBestActions: r.recommendations.map((x) => x.text),
     keystonePeople: r.people.slice(0, 3).map((p) => ({ name: p.displayName, keystoneIndex: p.keystoneIndex, soleKeeperOf: p.soleKeeperOf, away: p.away })),
   };
 });
