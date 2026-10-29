@@ -1,0 +1,7 @@
+node_modules/
+static/app/dist-mock/
+.env
+.env.*
+*.log
+.DS_Store
+static/app/dist/

@@ -1,0 +1,161 @@
+modules:
+  jira:globalPage:
+    - key: keystone-home
+      resource: main
+      resolver:
+        function: resolver
+      title: Keystone
+      icon: resource:icons;keystone.svg
+  jira:issuePanel:
+    - key: keystone-issue-panel
+      resource: main
+      resolver:
+        function: resolver
+      title: Keystone · context holders
+      icon: resource:icons;keystone.svg
+  rovo:agent:
+    - key: keystone-agent
+      name: Keystone
+      description: Finds who holds the context for any part of your Jira work, spots
+        single points of knowledge failure, and drafts handover plans.
+      icon: resource:icons;keystone.svg
+      prompt: resource:agent;prompt.md
+      conversationStarters:
+        - Where is our knowledge risk right now?
+        - Who knows the most about payments?
+        - What breaks if Maya goes on leave?
+        - Draft a handover plan for Omar
+      actions:
+        - keystone-risk-report
+        - keystone-find-experts
+        - keystone-simulate-absence
+        - keystone-handover-plan
+        - keystone-issue-context
+  rovo:mcp:
+    - key: keystone-mcp
+      name: Keystone context
+      tools:
+        - keystone-risk-report
+        - keystone-find-experts
+        - keystone-simulate-absence
+        - keystone-handover-plan
+        - keystone-issue-context
+  action:
+    - key: keystone-risk-report
+      name: Knowledge risk report
+      function: riskReport
+      actionVerb: GET
+      description: Return the knowledge-concentration (bus factor) report for a Jira
+        project - riskiest areas, why they are risky, and the people the team
+        depends on most. Use when asked about knowledge risk, bus factor, silos
+        or single points of failure.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key such as PAY. Leave empty to use the current or
+            default project. SAMPLE uses the built-in sample workspace.
+    - key: keystone-find-experts
+      name: Find context holders
+      function: findExperts
+      actionVerb: GET
+      description: Find the people who hold the most context about a topic, component
+        or epic, based on who actually did and discussed the work in Jira. Use
+        when asked who knows about something or who to ask.
+      inputs:
+        topic:
+          title: Topic
+          type: string
+          required: true
+          description: The topic, component, feature or keywords, for example "tax
+            calculation" or "mobile SDK".
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key. Leave empty for the current or default project.
+    - key: keystone-simulate-absence
+      name: Simulate an absence
+      function: simulateAbsence
+      actionVerb: GET
+      description: Show which areas would lose their context, and how much open work
+        is affected, if a person became unavailable (leave, departure,
+        reassignment).
+      inputs:
+        person:
+          title: Person
+          type: string
+          required: true
+          description: Display name (or part of it) of the person.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key. Leave empty for the current or default project.
+    - key: keystone-handover-plan
+      name: Draft a handover plan
+      function: handoverPlan
+      actionVerb: GET
+      description: Draft a knowledge handover plan for a person - which areas they
+        hold, suggested successors, open work to transfer and what to read
+        first.
+      inputs:
+        person:
+          title: Person
+          type: string
+          required: true
+          description: Display name (or part of it) of the person handing over.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key. Leave empty for the current or default project.
+    - key: keystone-issue-context
+      name: Who holds context for a work item
+      function: issueContextHolders
+      actionVerb: GET
+      description: For one Jira work item, list the people who hold context for its
+        area, its bus factor, and warn if they are away. Use when asked who to
+        talk to about a ticket.
+      inputs:
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: Jira work item key such as PAY-123. Leave empty to use the work
+            item currently open.
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: riskReport
+      handler: index.riskReport
+    - key: findExperts
+      handler: index.findExperts
+    - key: simulateAbsence
+      handler: index.simulateAbsence
+    - key: handoverPlan
+      handler: index.handoverPlan
+    - key: issueContextHolders
+      handler: index.issueContextHolders
+resources:
+  - key: main
+    path: static/app/dist
+  - key: icons
+    path: static/icons
+  - key: agent
+    path: agent
+permissions:
+  scopes:
+    - read:jira-work
+    - read:jira-user
+    - write:jira-work
+    - storage:app
+  content:
+    styles:
+      - unsafe-inline
+app:
+  runtime:
+    name: nodejs22.x
+    memoryMB: 512
+  id: ari:cloud:ecosystem::app/79b0f502-4fe0-462c-9f02-3b75a6f5fdd2

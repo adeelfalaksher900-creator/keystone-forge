@@ -1,0 +1,18 @@
+{
+  "name": "keystone",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Keystone: knowledge-risk radar for Jira (Atlassian Forge)",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build:ui": "npm --prefix static/app run build",
+    "lint": "forge lint"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/kvs": "^2.1.1",
+    "@forge/resolver": "^2.0.2"
+  }
+}
