@@ -179,6 +179,7 @@ export function analyze(issues, { now = Date.now(), availability = {} } = {}) {
     },
     areas: areaList,
     people: peopleList,
+    recommendations: recommendations(areaList),
   };
 }
 
@@ -204,6 +205,26 @@ export function teamBusFactor(areaList) {
     count++;
   }
   return count;
+}
+
+// The three most useful next steps: turn the riskiest areas into concrete pairing actions.
+export function recommendations(areas, limit = 3) {
+  return areas
+    .filter((a) => a.risk.level === 'critical' || a.risk.level === 'high')
+    .slice(0, limit)
+    .map((a) => {
+      const [top, ...rest] = a.holders;
+      const backup = rest.find((h) => !h.away && h.share >= 0.05);
+      const issue = a.openIssues[0];
+      const first = (p) => p.displayName.split(' ')[0];
+      let text;
+      if (top.away && !backup) text = `${top.displayName} is away and nobody else holds context for ${a.name}. Pick a backup owner now.`;
+      else if (top.away && backup) text = `${top.displayName} is away. Move ${issue ? issue.key : 'open work'} to ${first(backup)}, who holds the next most context in ${a.name}.`;
+      else if (backup && issue) text = `Pair ${first(backup)} with ${first(top)} on ${issue.key} so ${a.name} has a second owner.`;
+      else if (backup) text = `Let ${first(backup)} lead the next change in ${a.name}, with ${first(top)} reviewing.`;
+      else text = `Only ${top.displayName} has worked on ${a.name}. Assign a second person to its next work item.`;
+      return { areaId: a.id, area: a.name, level: a.risk.level, text, issueKey: issue?.key || null };
+    });
 }
 
 // What-if: which areas lose all meaningful context if these people are unavailable.
@@ -236,7 +257,8 @@ export function handoverPlan(result, accountId) {
         share: h.share,
         riskLevel: a.risk.level,
         successors: successors.map((s) => ({ accountId: s.accountId, displayName: s.displayName, share: s.share })),
-        needsNewOwner: successors.length === 0 || successors[0].share < 0.1,
+        needsNewOwner: successors.length === 0,
+        lowContext: successors.length > 0 && successors[0].share < 0.1,
         transferIssues: a.openIssues.filter((i) => i.assigneeId === accountId),
         readingList: a.recentIssues,
       };
