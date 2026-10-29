@@ -81,6 +81,18 @@ test('sample workspace produces sensible summary', () => {
   assert.equal(teamBusFactor([]), 0);
 });
 
+test('recommendations target the riskiest areas with real people and issues', () => {
+  const r = analyze(sampleIssues(NOW), { now: NOW });
+  assert.equal(r.recommendations.length, 3);
+  assert.equal(r.recommendations[0].area, 'Fraud Rules Engine');
+  assert.match(r.recommendations[0].text, /Pair Tom with Omar on PAY-\d+/);
+  const away = analyze(sampleIssues(NOW), { now: NOW, availability: { 's-omar': { status: 'leave' } } });
+  assert.ok(away.recommendations.some((x) => /Omar Haddad is away/.test(x.text)));
+  const plan = handoverPlan(r, 's-omar');
+  assert.equal(plan.items[0].needsNewOwner, false);
+  assert.equal(plan.items[0].lowContext, true);
+});
+
 test('normalizeIssue maps Jira REST shape', () => {
   const raw = {
     key: 'K-1',
