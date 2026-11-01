@@ -16,7 +16,7 @@ export function normalizeIssue(raw) {
     created: ts(f.created),
     updated: ts(f.updated),
     resolved: ts(f.resolutiondate),
-    comments: (f.comment?.comments || []).map((c) => ({ author: person(c.author), created: ts(c.created) })).filter((c) => c.author),
+    comments: (f.comment?.comments || []).filter((c) => !c.visibility).map((c) => ({ author: person(c.author), created: ts(c.created) })).filter((c) => c.author),
     transitions: (raw.changelog?.histories || [])
       .filter((h) => h.items?.some((i) => i.field === 'status'))
       .map((h) => ({ author: person(h.author), created: ts(h.created) }))

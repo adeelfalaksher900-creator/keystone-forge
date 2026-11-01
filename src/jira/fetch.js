@@ -1,7 +1,7 @@
 import { asUser, route } from '@forge/api';
 import { normalizeIssue } from './normalize.js';
 
-const FIELDS = 'summary,status,components,labels,parent,assignee,reporter,created,updated,resolutiondate,comment';
+const FIELDS = 'summary,status,components,labels,parent,assignee,reporter,created,updated,resolutiondate,comment,security';
 export const MAX_ISSUES = 300; // shortcut: newest 300 (25s resolver limit) issues of the last year; page through a scheduled job if teams need more
 
 async function asJson(res, what) {
@@ -34,7 +34,8 @@ export async function fetchProjectIssues(projectKey) {
     if (nextPageToken) params.set('nextPageToken', nextPageToken);
     const res = await asUser().requestJira(route`/rest/api/3/search/jql?${params}`);
     const body = await asJson(res, 'Searching issues');
-    issues.push(...body.issues.map(normalizeIssue));
+    // Shared cache: skip issues under an issue security level so no viewer sees work they could not open.
+    issues.push(...body.issues.filter((i) => !i.fields?.security).map(normalizeIssue));
     nextPageToken = body.nextPageToken;
   } while (nextPageToken && issues.length < MAX_ISSUES);
   return issues;
@@ -65,4 +66,12 @@ export async function issueTypes(projectKey) {
   const res = await asUser().requestJira(route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes`);
   const body = await asJson(res, 'Loading issue types');
   return body.issueTypes || body.values || [];
+}
+
+export async function openHandoverSummaries(projectKey) {
+  const jql = `project = "${projectKey.replace(/"/g, '')}" AND labels = keystone-handover AND statusCategory != Done`;
+  const params = new URLSearchParams({ jql, fields: 'summary', maxResults: '100' });
+  const res = await asUser().requestJira(route`/rest/api/3/search/jql?${params}`);
+  const body = await asJson(res, 'Checking existing handover tasks');
+  return body.issues.map((i) => i.fields.summary || '');
 }
