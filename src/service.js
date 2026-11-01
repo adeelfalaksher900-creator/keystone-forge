@@ -1,23 +1,27 @@
 // Shared application logic for the Custom UI resolvers and the Rovo/MCP actions.
 import { kvs } from '@forge/kvs';
 import { analyze, simulateAbsence, handoverPlan, findExperts, areasOf } from './engine/analyze.js';
-import { sampleIssues, SAMPLE_PROJECT } from './engine/sample.js';
+import { sampleIssues, SAMPLE_PROJECT, SAMPLE_PEOPLE } from './engine/sample.js';
 import * as jira from './jira/fetch.js';
 
 const CACHE_MS = 6 * 3600 * 1000;
 const SAMPLE = SAMPLE_PROJECT.key;
 const STATUSES = ['available', 'leave', 'leaving'];
+const SAMPLE_IDS = new Set(SAMPLE_PEOPLE.map((p) => p.accountId));
+const MAX_AVAILABILITY = 500;
+const isoDate = (d) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d)) ? d : null);
 
 export const isSample = (projectKey) => projectKey === SAMPLE;
 
-export async function getSettings() {
-  return (await kvs.get('settings')) || { defaultProject: null };
+// Each person has their own default project (used by the UI and when Rovo is asked without a project).
+export async function getSettings(accountId) {
+  return (await kvs.get(`settings:${accountId}`)) || { defaultProject: null };
 }
 
-export async function setDefaultProject(projectKey) {
+export async function setDefaultProject(accountId, projectKey) {
   if (!isSample(projectKey)) await jira.assertCanBrowse(projectKey);
-  const settings = { ...(await getSettings()), defaultProject: projectKey };
-  await kvs.set('settings', settings);
+  const settings = { ...(await getSettings(accountId)), defaultProject: projectKey };
+  await kvs.set(`settings:${accountId}`, settings);
   return settings;
 }
 
@@ -28,12 +32,16 @@ export async function getAvailability() {
 // Users may set their own availability; Jira admins may set anyone's. Sample people are open to all.
 export async function setAvailability(callerId, { accountId, status, from, until, note }) {
   if (!STATUSES.includes(status)) throw new Error('Unknown availability status');
-  if (!accountId?.startsWith('s-') && accountId !== callerId && !(await jira.isSiteAdmin())) {
+  if (typeof accountId !== 'string' || !accountId) throw new Error('Missing person');
+  if (!SAMPLE_IDS.has(accountId) && accountId !== callerId && !(await jira.isSiteAdmin().catch(() => false))) {
     throw new Error('Only Jira admins can change availability for other people');
   }
   const availability = await getAvailability();
   if (status === 'available') delete availability[accountId];
-  else availability[accountId] = { status, from: from || null, until: until || null, note: String(note || '').slice(0, 140), setBy: callerId, setAt: new Date().toISOString() };
+  else {
+    if (!availability[accountId] && Object.keys(availability).length >= MAX_AVAILABILITY) throw new Error('Too many availability entries; clear old ones first');
+    availability[accountId] = { status, from: isoDate(from), until: isoDate(until), note: String(note || '').slice(0, 140), setBy: callerId, setAt: new Date().toISOString() };
+  }
   await kvs.set('availability', availability);
   return availability;
 }
@@ -68,10 +76,10 @@ export async function getAnalysis(projectKey, { refresh = false } = {}) {
   return { ...result, projectKey, sample: isSample(projectKey), cachedAt, truncated: issues.length >= jira.MAX_ISSUES };
 }
 
-export async function resolveProject(explicit, context) {
+export async function resolveProject(explicit, context, accountId) {
   const key = String(explicit || context?.jira?.projectKey || '').trim().toUpperCase();
   if (key) return key;
-  return (await getSettings()).defaultProject || SAMPLE;
+  return (accountId && (await getSettings(accountId)).defaultProject) || SAMPLE;
 }
 
 export function matchPerson(result, nameOrId) {
@@ -105,10 +113,13 @@ export async function createHandoverTasks(projectKey, accountId) {
   const types = await jira.issueTypes(projectKey);
   const type = types.find((t) => /^task$/i.test(t.name) && !t.subtask) || types.find((t) => !t.subtask);
   if (!type) throw new Error('No standard issue type available in this project');
+  const existing = new Set((await jira.openHandoverSummaries(projectKey)).map((t) => t.toLowerCase()));
   const doc = (lines) => ({ type: 'doc', version: 1, content: lines.map((text) => ({ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] })) });
   const created = [];
   for (const item of plan.items.slice(0, 10)) {
     const successor = item.successors[0];
+    const prefix = `Knowledge handover: ${item.area} (${plan.person.displayName}`.toLowerCase();
+    if ([...existing].some((t) => t.startsWith(prefix))) continue; // already has an open handover task
     const fields = {
       project: { key: projectKey },
       issuetype: { id: type.id },
