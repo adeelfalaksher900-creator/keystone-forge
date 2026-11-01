@@ -25,12 +25,15 @@ modules:
         - Who knows the most about payments?
         - What breaks if Maya goes on leave?
         - Draft a handover plan for Omar
+        - I'm on leave until 15 December
       actions:
         - keystone-risk-report
         - keystone-find-experts
         - keystone-simulate-absence
         - keystone-handover-plan
         - keystone-issue-context
+        - keystone-set-availability
+        - keystone-create-handover-tasks
   rovo:mcp:
     - key: keystone-mcp
       name: Keystone context
@@ -40,6 +43,8 @@ modules:
         - keystone-simulate-absence
         - keystone-handover-plan
         - keystone-issue-context
+        - keystone-set-availability
+        - keystone-create-handover-tasks
   action:
     - key: keystone-risk-report
       name: Knowledge risk report
@@ -125,6 +130,48 @@ modules:
           required: false
           description: Jira work item key such as PAY-123. Leave empty to use the work
             item currently open.
+    - key: keystone-set-availability
+      name: Set availability
+      function: setAvailability
+      actionVerb: UPDATE
+      description: Mark a person as on leave, leaving the team, or available again. Users can update themselves; only Jira admins can update other people. Use when someone says they are going on leave, are leaving, or are back.
+      inputs:
+        status:
+          title: Status
+          type: string
+          required: true
+          description: One of available, leave, leaving.
+        date:
+          title: Date
+          type: string
+          required: false
+          description: For leave, the return date; for leaving, the last day. Format YYYY-MM-DD.
+        person:
+          title: Person
+          type: string
+          required: false
+          description: Display name of the person. Leave empty for the current user.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key used to find the person. Leave empty for the default project.
+    - key: keystone-create-handover-tasks
+      name: Create handover tasks
+      function: createHandoverTasks
+      actionVerb: CREATE
+      description: Create Jira tasks (labelled keystone-handover) for each area a person needs to hand over, assigned to the suggested successor. Skips areas that already have an open handover task. Only use after the user confirms they want the tasks created.
+      inputs:
+        person:
+          title: Person
+          type: string
+          required: true
+          description: Display name of the person handing over.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Jira project key where the tasks are created. Leave empty for the default project.
   function:
     - key: resolver
       handler: index.handler
@@ -138,6 +185,10 @@ modules:
       handler: index.handoverPlan
     - key: issueContextHolders
       handler: index.issueContextHolders
+    - key: setAvailability
+      handler: index.setAvailability
+    - key: createHandoverTasks
+      handler: index.createHandoverTasks
 resources:
   - key: main
     path: static/app/dist

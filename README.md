@@ -10,7 +10,7 @@ Find your team's single points of knowledge failure before a vacation, resignati
 ![Atlassian Forge](https://img.shields.io/badge/Atlassian-Forge-0052CC?logo=atlassian&logoColor=white)
 ![Jira](https://img.shields.io/badge/Jira-Cloud-0052CC?logo=jira&logoColor=white)
 ![Rovo agent](https://img.shields.io/badge/Rovo-agent-6554C0)
-![MCP](https://img.shields.io/badge/rovo%3Amcp-5%20tools-111111)
+![MCP](https://img.shields.io/badge/rovo%3Amcp-7%20tools-111111)
 ![Runs on Atlassian](https://img.shields.io/badge/Runs%20on%20Atlassian-no%20egress-36B37E)
 ![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey)
 
@@ -52,8 +52,8 @@ Keystone measures where context actually lives in Jira, explains why it is fragi
 | **People** | Availability (on leave / leaving), Keystone index, and a generated **handover plan**: successors, work to transfer, reading list, created as **Jira tasks** in one click or copied as Markdown |
 | **What-if** | Select any people and see which areas lose every key holder and how much open work is exposed |
 | **Issue panel** | On every work item: who holds the context for its area, its bus factor, and a warning if they are away |
-| **Rovo agent** | "Where is our knowledge risk?", "Who knows the most about tax?", "What breaks if Maya goes on leave?", "Draft a handover plan for Omar" |
-| **MCP server** (`rovo:mcp`) | The same five tools for Claude Code, Cursor and other MCP clients, so coding agents can check who holds context before changing an area |
+| **Rovo agent** | Asks: "Where is our knowledge risk?", "Who knows the most about tax?", "What breaks if Maya goes on leave?", "Draft a handover plan for Omar". Acts: "I'm on leave until 15 December" updates availability; "create the handover tasks" creates them in Jira after confirmation |
+| **MCP server** (`rovo:mcp`) | The same seven tools for Claude Code, Cursor and other MCP clients, so coding agents can check who holds context before changing an area |
 
 A built-in **sample workspace** (a fictional payments team, always labelled *Sample data*) lets anyone explore every feature on an empty site.
 
@@ -107,7 +107,7 @@ flowchart LR
     subgraph F["Keystone Forge app"]
       UI["Custom UI<br/>global page + issue panel"]
       RES["Resolvers"]
-      ACT["5 Rovo actions"]
+      ACT["7 Rovo actions"]
       SVC["Service layer<br/>permission check · cache"]
       ENG["Analysis engine<br/>pure, unit-tested"]
       KVS[("Forge KVS")]
@@ -147,7 +147,7 @@ sequenceDiagram
 | Layer | Technology |
 |---|---|
 | Platform | Atlassian Forge, Node.js 22 runtime |
-| Modules | `jira:globalPage`, `jira:issuePanel`, `rovo:agent`, 5 × `action`, `rovo:mcp` |
+| Modules | `jira:globalPage`, `jira:issuePanel`, `rovo:agent`, 7 × `action` (5 read, 2 write), `rovo:mcp` |
 | UI | React 19, Vite, Atlassian theme tokens (light and dark) |
 | Data | Jira Cloud REST API v3 via `requestJira` as the user; Forge KVS |
 | Tests | Node.js test runner |
@@ -155,7 +155,9 @@ sequenceDiagram
 ## Security and privacy
 
 - **Runs on Atlassian.** No external services, no egress, no third-party AI. Forge reports the app eligible for *Runs on Atlassian*; Rovo provides the language layer.
-- **User permissions everywhere.** All Jira reads use `asUser()`. Cached project data is served only after a live permission check on that project.
+- **User permissions everywhere.** All Jira reads use `asUser()`. Cached project data is served only after a live permission check on that project, and work items under an issue security level or comments with restricted visibility are never cached.
+- **Prompt-injection aware.** Agent and MCP tool output is labelled as data, issue summaries are truncated, and the agent is instructed never to follow text found inside Jira data. Write actions (availability, handover tasks) run as the user, and the agent confirms before creating tasks.
+- **Per-user settings.** Each person's default project is stored separately; duplicate handover tasks are skipped.
 - **Least privilege.** Scopes: `read:jira-work`, `read:jira-user`, `write:jira-work` (handover tasks only), `storage:app`.
 - **Governed availability.** Users can set their own availability; changing someone else's requires Jira admin permission. Every change records who made it and when.
 - **Minimal storage.** Comment text and descriptions are never stored. The cache expires after 6 hours. See [PRIVACY.md](PRIVACY.md).
