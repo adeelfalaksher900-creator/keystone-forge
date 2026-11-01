@@ -208,3 +208,4 @@ h3 { font-size: 15px; font-weight: 600; margin: 0; }
 }
 
 .actions .num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 85%, var(--text)); }
+.segmented { scrollbar-width: none; } .segmented::-webkit-scrollbar { display: none; }
